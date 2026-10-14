@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-MIT-brightgreen?style=flat-square)](LICENSE)
 [![Edge Ready](https://img.shields.io/badge/Edge%20Ready-Raspberry%20Pi-C51A4A?style=flat-square&logo=raspberrypi&logoColor=white)](https://www.raspberrypi.com/)
 
-[Python](https://www.python.org/) • [NumPy](https://numpy.org/) • [spaCy](https://spacy.io/) • [Architecture](#3-for-engineers-technical-architecture--implementation) • [License](LICENSE) • [Edge Ready](https://www.raspberrypi.com/)
+[Python](https://www.python.org/) • [NumPy](https://numpy.org/) • [spaCy](https://spacy.io/) • [Architecture](#3-for-engineers-technical-architecture--implementation) • [Project Structure](#4-project-directory-structure) • [License](LICENSE) • [Edge Ready](https://www.raspberrypi.com/)
 
 ---
 
@@ -136,29 +136,36 @@ Yukti is strictly decoupled into three functional tiers connected via determinis
 
 Detailed visual architectural diagrams (flow, component, sequence, and system architecture) are available in the [Architecture/](./Architecture) directory.
 
-### Component Breakdown
+### Component Breakdown & Module Mapping
 
-#### Tier 1: Perception (`TextStream`, `TextProcess`)
-- **`TextStream`**: Handles text chunking and manages stream input.
-- **`TextProcess`**: A pipeline pairing spaCy with pre-compiled regular expressions:
+The modules in [`src/`](./src) directly implement the nodes defined in the [Architecture Diagrams](./Architecture):
+
+#### Tier 1: Perception (`src/ParsingAndRegex/`)
+- **`model.py`** (`Model`): Instantiates and configures the underlying spaCy pipeline (`en_core_web_sm`).
+- **`TextStream.py`** (`TextStream`): Manages raw input stream ingestion, buffering, and text chunking.
+- **`TextProcess.py`** (`TextProcess`): Sentence parser, clause segmenter, and regex sequence labeller:
   - **Regex Engine**: Extracts numeric thresholds (`\d+(\.\d+)?`), currency markers, percentage normalizations ($43\% \to 0.43$), and comparative keywords (`>=`, `under`, `at least`).
   - **spaCy Pipeline**: Computes part-of-speech tags and sentence/clause boundary spans to identify target financial attribute spans (*credit score*, *debt-to-income ratio*, *monthly income*).
   - **JSON Serialization**: Represents and serializes all extracted tokens, entities, and clause boundaries into a clean, decoupled intermediate **JSON payload**.
 
-#### Tier 2: Translation (`TextToMathBridge`)
-- **Intermediary Engine**: Ingests the structured JSON payload produced by the Perception parser.
-- Normalizes non-standard linguistic spans against an explicit Financial Lexicon (mapping `"credit rating"` $\to$ `CREDIT_SCORE`).
-- Executes spatial proximity binding within clause boundaries to generate typed triplets:
+#### Tier 2: Translation (`src/TranslationEngine/`)
+- **`TextToMathBridge.py`** (`TextToMathBridge`): The intermediary engine connecting linguistic perception to formal mathematical logic:
+  - Ingests the structured JSON payload produced by `TextProcess`.
+  - Normalizes non-standard linguistic spans against an explicit Financial Lexicon (mapping `"credit rating"` $\to$ `CREDIT_SCORE`).
+  - Executes spatial proximity binding within clause boundaries to generate typed triplets:
 
 $$\langle \text{Metric}, \; \text{Operator}, \; \text{Threshold} \rangle$$
 
-- Compiles and validates the JSON payload into a typed `FinancialPolicyAST` validating all rule branches before solver execution.
+  - Compiles and validates the JSON payload into a typed `FinancialPolicyAST` before passing it to the solver.
 
-#### Tier 3: Formal Reasoning (`LogicEngine`, `dpllEngine`, `smtEngine`)
-Built with Python and pure NumPy without external C++ or third-party logic dependencies.
-- **`dpllEngine`**: Maintains assignment vectors, watched literals, and clause databases using NumPy boolean masking.
-- **`smtEngine`**: Implements a tableau-based Simplex algorithm using NumPy matrix pivots to solve systems of linear inequalities.
-- **`LogicEngine`**: Orchestrates variable allocation, asserts tracking literals, and maps the resulting UNSAT core directly back to human-readable rule violations.
+#### Tier 3: Formal Reasoning (`src/LogicEngine/`)
+Built with Python and pure NumPy without external C++ or third-party logic dependencies:
+- **`DPL.py`** (`dpllEngine`): Maintains assignment vectors, watched literals, and clause databases using NumPy boolean masking (CDCL SAT Engine).
+- **`SMT.py`** (`smtEngine`): Implements a tableau-based 2-phase Simplex algorithm using NumPy matrix pivots to solve systems of linear inequalities (Theory $\mathcal{T}$-Solver).
+- **`LogicEngine.py`** (`LogicEngine`): Top-level SMT facade that coordinates SAT solving with Theory lemmas, asserts tracking literals, and maps UNSAT cores directly back into human-readable rule violations.
+
+#### Interactive Interface
+- **`chatInterface.py`**: Interactive CLI and chat frontend allowing users and underwriters to input policies, evaluate applicant cases, and inspect audit trails in real time.
 
 ### Installation & Environment Setup
 
@@ -184,9 +191,10 @@ python -m spacy download en_core_web_sm
 ### Quickstart Example
 
 ```python
-from yukti.bridge import TextToMathBridge
-from yukti.logic import LogicEngine
-from yukti.perception import TextProcess, TextStream
+from src.ParsingAndRegex.TextStream import TextStream
+from src.ParsingAndRegex.TextProcess import TextProcess
+from src.TranslationEngine.TextToMathBridge import TextToMathBridge
+from src.LogicEngine.LogicEngine import LogicEngine
 
 # 1. Initialize pipeline
 stream = TextStream()
@@ -237,4 +245,55 @@ if result.status == "REJECTED":
 Decision Status: REJECTED
 Adverse Action Audit Trail:
  - [VIOLATION] Rule PrimeMortgage.credit_score failed. Actual: 640.0 | Required: >= 680.0
+```
+
+---
+
+## 4. Project Directory Structure
+
+### Repository Layout
+
+- 📁 [**`Architecture/`**](./Architecture) — *Visual architecture diagrams & design specifications*
+  - 📄 [`Architecture.drawio`](./Architecture/Architecture.drawio) — Editable Draw.io system diagram
+  - 🖼️ [`Architecture.png`](./Architecture/Architecture.png) — End-to-end architecture overview
+  - 🖼️ [`Component Diagram.png`](./Architecture/Component%20Diagram.png) — Component relationship diagram
+  - 🖼️ [`Flow diagram.png`](./Architecture/Flow%20diagram.png) — Execution & data flow diagram
+  - 🖼️ [`Sequence Diagram.png`](./Architecture/Sequence%20Diagram.png) — Chronological component interactions
+- 📁 [**`src/`**](./src) — *Implementation source code*
+  - 📁 [**`ParsingAndRegex/`**](./src/ParsingAndRegex) — *Tier 1: Perception Engine*
+    - 🐍 [`model.py`](./src/ParsingAndRegex/model.py) — spaCy pipeline loader & model config
+    - 🐍 [`TextStream.py`](./src/ParsingAndRegex/TextStream.py) — Input stream ingestion buffer & chunking handler
+    - 🐍 [`TextProcess.py`](./src/ParsingAndRegex/TextProcess.py) — Sentence parser, regex matcher & JSON serializer
+  - 📁 [**`TranslationEngine/`**](./src/TranslationEngine) — *Tier 2: Translation / Intermediary Engine*
+    - 🐍 [`TextToMathBridge.py`](./src/TranslationEngine/TextToMathBridge.py) — JSON deserializer, ontology lexicon grounding & AST builder
+  - 📁 [**`LogicEngine/`**](./src/LogicEngine) — *Tier 3: Formal Reasoning Engine (Pure NumPy)*
+    - 🐍 [`DPL.py`](./src/LogicEngine/DPL.py) — Propositional CDCL / DPLL SAT solver
+    - 🐍 [`SMT.py`](./src/LogicEngine/SMT.py) — Simplex-based Linear Real Arithmetic (LRA) solver
+    - 🐍 [`LogicEngine.py`](./src/LogicEngine/LogicEngine.py) — SMT coordinator & unsat-core audit trail mapper
+  - 🐍 [`chatInterface.py`](./src/chatInterface.py) — Underwriter interactive chat & CLI frontend
+- 📄 [**`README.MD`**](./README.MD) — Documentation
+
+### ASCII Tree View
+
+```text
+Shiva/ (branch: Yukti)
+├── Architecture/                     # Visual design specifications
+│   ├── Architecture.drawio           # Editable Draw.io source file
+│   ├── Architecture.png              # End-to-end architecture overview
+│   ├── Component Diagram.png         # Tiered module breakdown
+│   ├── Flow diagram.png              # Execution & decision flow
+│   └── Sequence Diagram.png          # Chronological component interactions
+├── src/                              # Implementation source code
+│   ├── ParsingAndRegex/              # Tier 1: Perception Engine
+│   │   ├── model.py                  # spaCy pipeline loader & model config
+│   │   ├── TextStream.py             # Stream buffer & text chunking handler
+│   │   └── TextProcess.py            # Sentence segmenter, regex labeller & JSON exporter
+│   ├── TranslationEngine/            # Tier 2: Translation / Intermediary Engine
+│   │   └── TextToMathBridge.py       # JSON deserializer, ontology grounding & AST builder
+│   ├── LogicEngine/                  # Tier 3: Formal Reasoning Engine (NumPy-native)
+│   │   ├── DPL.py                    # Propositional CDCL / DPLL SAT solver
+│   │   ├── SMT.py                    # Simplex-based Linear Real Arithmetic (LRA) solver
+│   │   └── LogicEngine.py            # SMT coordinator & unsat-core audit trail mapper
+│   └── chatInterface.py              # Underwriter interactive chat & CLI frontend
+└── README.MD                         # Documentation
 ```
