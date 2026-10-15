@@ -69,7 +69,7 @@ $$\text{Controlled Input DTO } (\mathcal{R}, \mathcal{F}, \mathcal{T}) \xrightar
 ### Core Theoretical Concepts Explored in Yukti
 
 #### 1. Decidable Fragments vs. Unrestricted First-Order Logic
-Full First-Order Logic (FOL) with arbitrary quantification ($\forall, \exists$) is semi-decidable under Turing-Church undecidability. If a policy is not entailed, a classical theorem prover may run infinitely. Yukti sidesteps this by compiling policies strictly into Quantifier-Free Linear Real Arithmetic ($\text{QF\_LRA}$) and Quantifier-Free Linear Integer Arithmetic ($\text{QF\_LIA}$), ensuring termination with guaranteed polynomial or bounded exponential complexity.
+Full First-Order Logic (FOL) with arbitrary quantification ($\forall, \exists$) is semi-decidable under Turing-Church undecidability. If a policy is not entailed, a classical theorem prover may run infinitely. Yukti sidesteps this by compiling policies strictly into Quantifier-Free Linear Real Arithmetic (`QF_LRA`) and Quantifier-Free Linear Integer Arithmetic (`QF_LIA`), ensuring termination with guaranteed polynomial or bounded exponential complexity.
 
 #### 2. Dynamic Symbol Table & Dependency-Driven Extraction
 Instead of relying on brittle templates (like forcing users to type *"must be"*) or hardcoded domain dictionaries, Yukti anchors on mathematical operators via Regex and traverses spaCy's syntactic dependency tree (`nsubj`, `amod`, `compound`, `advcl`) to extract noun-chunk subjects dynamically. Extracted noun phrases are lemmatized and normalized into a session-scoped Dynamic Symbol Table, allowing arbitrary domains to be modeled without pre-existing ontologies.
