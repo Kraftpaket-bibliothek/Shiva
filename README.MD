@@ -105,7 +105,7 @@ $$\text{Check: } \text{SAT}(\Delta \land \neg G)$$
 
 ### Software Architecture
 
-Yukti is decoupled into an interactive 3-field UI contract and three functional tiers connected via deterministic data transfer objects (DTOs):
+Yukti is decoupled into an interactive 3-field UI contract and two streamlined, high-performance tiers connected via deterministic Pydantic JSON payloads:
 
 ```text
 [Interactive UI / CLI: 3 Structured Input Fields]
@@ -115,24 +115,16 @@ Yukti is decoupled into an interactive 3-field UI contract and three functional 
                  │
                  v
 +--------------------------------------------------------+
-| 1. Perception Tier (src/ParsingAndRegex/)              |
-| • TextStream: Sanitizes & packs fields into            |
-|   immutable YuktiInputDTO                              |
-| • TextProcess: spaCy dependency parser + Regex engine  |
+| 1. Perception Tier (src/textProcessor.py)              |
+| • Model: In-memory spaCy loader & .config manager      |
+| • DataInput DTO: Ingestion & 3-field validation        |
+| • TextProcess: Recipe pipeline & JSON generator        |
 +--------------------------┬-----------------------------+
                            │ Intermediate Structured JSON
-                           │ (Parsed Clauses, Noun Chunks & Ops)
+                           │ (ParsedRuleDTO & ParsedFactDTO)
                            v
 +--------------------------------------------------------+
-| 2. Translation Tier (src/TranslationEngine/)           |
-| • TextToMathBridge: Dynamic Symbol Table construction  |
-|   & spatial triplet binding                            |
-| • AST Compiler: Synthesizes domain-agnostic PolicyAST  |
-+--------------------------┬-----------------------------+
-                           │ Universal PolicyAST
-                           v
-+--------------------------------------------------------+
-| 3. Formal Reasoning Tier (src/LogicEngine/ - NumPy)    |
+| 2. Formal Reasoning Tier (src/logicEngine.py - NumPy)  |
 | • LogicEngine: SMT Coordinator & Facade                |
 | • dpllEngine: Vectorized CDCL SAT Solver               |
 | • smtEngine: Simplex-based Linear Arithmetic Solver    |
@@ -146,37 +138,26 @@ Detailed visual architectural diagrams (flow, component, sequence, and system ar
 
 ### Component Breakdown & Module Mapping
 
-The modules in [`src/`](./src) directly implement the nodes defined in the [Architecture Diagrams](./Architecture):
+The consolidated modules in [`src/`](./src) directly implement the pipeline defined in the system architecture:
 
-#### Tier 1: Perception (`src/ParsingAndRegex/`)
-- **`model.py`** (`Model`): Instantiates and configures the underlying spaCy pipeline (`en_core_web_lg` by default), reading from `.config` for easy model swapping, and prunes unused dependency trees.
-- **`TextStream.py`** (`TextStream` & `YuktiInputDTO`):
-  - Exposes the 3-field ingestion contract (`rules: List[str]`, `facts: List[str]`, `target: str`).
-  - Strips formatting noise (bullet points, numbering, whitespace) and encapsulates the payload into an immutable, validated `YuktiInputDTO`.
-- **`TextProcess.py`** (`TextProcess`):
-  - Consumes `YuktiInputDTO` so it never has to guess whether a sentence is a rule, a fact, or a target query.
-  - **Regex Engine**: Extracts numeric thresholds (`\d+(\.\d+)?`), percentage normalizations ($43\% \to 0.43$), comparative keywords (`>=`, `under`, `at least`, `exceeds`), and conditional discourse markers (`if`, `when`, `unless`, `otherwise`).
-  - **spaCy Dependency Pipeline**: Traverses dependency arcs around operators to extract subject noun chunks naturally—no mandatory *"must be"* phrasing required.
-  - **JSON Serialization**: Exports extracted clauses, conditional branches, subjects, operators, and values into a decoupled **JSON payload**.
+#### Perception Tier ([`src/textProcessor.py`](./src/textProcessor.py))
+- **`Model`**: Instantiates and configures the underlying spaCy pipeline (`en_core_web_lg` by default), reading from `.config` for easy model swapping, and prunes non-semantic dependency branches.
+- **Pydantic DTOs**:
+  - `DataInput`: Encapsulates the 3-field input contract (`Rules`, `Facts`, `RequiredOutcome`).
+  - `ParsedRuleDTO`: Encapsulates extracted symbols, normalized operators (`>=`, `<=`, `<`, `>`, `==`), thresholds, and optional conditional antecedents.
+  - `ParsedFactDTO`: Encapsulates observed variables and values.
+  - `ParsedOutputDTO`: Root container serializing the validated intermediate payload into formatted JSON via `.toJson()`.
+- **`TextProcess`**: The pipeline harness class featuring a single `addStep` method to assemble pluggable parsing recipes (`parsePayload`, `extractRules`, `extractFacts`, `assembleDto`, `exportJson`) without execution branching or nested `if-else` statements.
+- **`buildDefaultRecipe`**: Assembles the pre-configured end-to-end perception pipeline.
 
-#### Tier 2: Translation (`src/TranslationEngine/`)
-- **`TextToMathBridge.py`** (`TextToMathBridge`): The domain-agnostic intermediary compiler connecting linguistic perception to formal logic:
-  - Ingests the structured JSON payload produced by `TextProcess`.
-  - Builds a **Dynamic Symbol Table** on the fly by lemmatizing and normalizing extracted noun chunks (e.g., *"The applicant credit scores"* $\to$ `applicant_credit_score`, *"Rotor torque"* $\to$ `rotor_torque`).
-  - Executes spatial and syntactic binding within clause boundaries to generate typed triplets:
-
-$$\langle \text{Symbol}, \; \text{Operator}, \; \text{Threshold} \rangle$$
-
-  - Compiles conditional branches (`if`/`when` $\to P \implies Q$, `otherwise` $\to \neg P \implies R$) into a validated, domain-agnostic `PolicyAST`.
-
-#### Tier 3: Formal Reasoning (`src/LogicEngine/`)
+#### Formal Reasoning Tier ([`src/logicEngine.py`](./src/logicEngine.py))
 Built with Python and pure NumPy without external C++ or third-party logic dependencies:
-- **`DPL.py`** (`dpllEngine`): Maintains assignment vectors, watched literals, and clause databases using NumPy boolean masking (CDCL SAT Engine).
-- **`SMT.py`** (`smtEngine`): Implements a tableau-based 2-phase Simplex algorithm using NumPy matrix pivots to solve systems of linear inequalities (Theory $\mathcal{T}$-Solver).
-- **`LogicEngine.py`** (`LogicEngine`): Top-level SMT facade that coordinates SAT solving with Theory lemmas, asserts tracking literals for every rule in `PolicyAST`, and maps UNSAT cores directly back into human-readable rule violations.
+- **`dpllEngine`**: Maintains assignment vectors, watched literals, and clause databases using NumPy boolean masking (CDCL SAT Engine).
+- **`smtEngine`**: Implements a tableau-based 2-phase Simplex algorithm using NumPy matrix pivots to solve systems of linear inequalities (Theory $\mathcal{T}$-Solver).
+- **`LogicEngine`**: Top-level SMT facade that coordinates SAT solving with Theory lemmas, asserts tracking literals for every rule, and maps UNSAT cores directly back into human-readable rule violations.
 
-#### Interactive Interface
-- **`chatInterface.py`**: Interactive 3-field UI/CLI frontend prompting users for **1. Multiple Rules**, **2. Case Facts**, and **3. Target**, feeding directly into `TextStream` and rendering the resulting audit report.
+#### Interactive Interface ([`src/chatInterface.py`](./src/chatInterface.py))
+- Interactive 3-field UI/CLI frontend prompting users for **1. Multiple Rules**, **2. Case Facts**, and **3. Target**, passing them to `TextProcess` and rendering the resulting audit report.
 
 ### Installation & Environment Setup
 
@@ -202,48 +183,36 @@ python -m spacy download en_core_web_lg
 ### Quickstart Example (Domain-Agnostic 3-Field DTO Workflow)
 
 ```python
-from src.ParsingAndRegex.TextStream import TextStream
-from src.ParsingAndRegex.TextProcess import TextProcess
-from src.TranslationEngine.TextToMathBridge import TextToMathBridge
-from src.LogicEngine.LogicEngine import LogicEngine
+from src.textProcessor import DataInput, TextProcess, buildDefaultRecipe
+from src.logicEngine import LogicEngine
 
 # 1. Initialize pipeline components (loads model configured in .config, default: en_core_web_lg)
-stream = TextStream()
-processor = TextProcess()
-bridge = TextToMathBridge()
+processor = buildDefaultRecipe()
 engine = LogicEngine()
 
 # 2. Provide inputs via the 3 structured fields (Finance, Aerospace, or any domain)
-rules_field = [
-    "Credit score needs to be at least 680.",
-    "Debt to income ratio should stay under 43%.",
-    "Tax return years must be at least 2 when self employed is true."
-]
-
-facts_field = [
-    "Credit score: 640",
-    "Debt to income ratio: 36%",
-    "Self employed: true",
-    "Tax return years: 1"
-]
-
-target_field = "ALL_RULES"
-
-# 3. Perception: Package into YuktiInputDTO and extract to intermediate JSON
-input_dto = stream.ingest(
-    rules_input=rules_field,
-    facts_input=facts_field,
-    target_input=target_field
+input_data = DataInput(
+    Rules=[
+        "Credit score needs to be at least 680.",
+        "Debt to income ratio should stay under 43%.",
+        "Tax return years must be at least 2 when self employed is true."
+    ],
+    Facts=[
+        "Credit score: 640",
+        "Debt to income ratio: 36%",
+        "Self employed: true",
+        "Tax return years: 1"
+    ],
+    RequiredOutcome=["ALL_RULES"]
 )
-parsed_json = processor.parse_and_segment(input_dto)
 
-# 4. Translation: Build Dynamic Symbol Table and compile into a universal PolicyAST
-ast = bridge.build_ir(parsed_json)
+# 3. Perception: Execute recipe pipeline and extract validated JSON payload
+parsed_json = processor.executePipeline(input_data)
 
-# 5. Reasoning: Evaluate compliance via NumPy-based SMT
-result = engine.solve_policy(ast)
+# 4. Reasoning: Evaluate compliance via NumPy-based SMT
+result = engine.solve_policy(parsed_json)
 
-# 6. Inspect Verdict & Formal Audit Trail
+# 5. Inspect Verdict & Formal Audit Trail
 print(f"Decision Status: {result.status}")
 if result.status == "REJECTED":
     print("Adverse Action / Violation Audit Trail:")
@@ -278,19 +247,12 @@ Adverse Action / Violation Audit Trail:
   - 🖼️ [`Component Diagram.png`](./Architecture/Component%20Diagram.png) — Component relationship diagram
   - 🖼️ [`Flow diagram.png`](./Architecture/Flow%20diagram.png) — Execution & data flow diagram
   - 🖼️ [`Sequence Diagram.png`](./Architecture/Sequence%20Diagram.png) — Chronological component interactions
-- 📁 [**`src/`**](./src) — *Implementation source code*
-  - 📁 [**`ParsingAndRegex/`**](./src/ParsingAndRegex) — *Tier 1: Perception Engine*
-    - 🐍 [`model.py`](./src/ParsingAndRegex/model.py) — spaCy pipeline loader & model config
-    - 🐍 [`TextStream.py`](./src/ParsingAndRegex/TextStream.py) — 3-field `YuktiInputDTO` container, stream sanitizer & chunker
-    - 🐍 [`TextProcess.py`](./src/ParsingAndRegex/TextProcess.py) — Dependency clause parser, regex matcher & JSON serializer
-  - 📁 [**`TranslationEngine/`**](./src/TranslationEngine) — *Tier 2: Translation / Intermediary Engine*
-    - 🐍 [`TextToMathBridge.py`](./src/TranslationEngine/TextToMathBridge.py) — JSON deserializer, dynamic symbol table & universal AST builder
-  - 📁 [**`LogicEngine/`**](./src/LogicEngine) — *Tier 3: Formal Reasoning Engine (Pure NumPy)*
-    - 🐍 [`DPL.py`](./src/LogicEngine/DPL.py) — Propositional CDCL / DPLL SAT solver
-    - 🐍 [`SMT.py`](./src/LogicEngine/SMT.py) — Simplex-based Linear Real Arithmetic (LRA) solver
-    - 🐍 [`LogicEngine.py`](./src/LogicEngine/LogicEngine.py) — SMT coordinator & unsat-core audit trail mapper
-  - 🐍 [`chatInterface.py`](./src/chatInterface.py) — 3-field interactive chat & CLI frontend
-- 📄 [**`README.MD`**](./README.MD) — Documentation
+- 📁 [**`src/`**](./src) — *Consolidated implementation source code*
+  - 🐍 [**`textProcessor.py`**](./src/textProcessor.py) — *Perception Tier: Model loading, Pydantic DTOs & Recipe pipeline*
+  - 🐍 [**`logicEngine.py`**](./src/logicEngine.py) — *Formal Reasoning Tier: Pure NumPy CDCL SAT and Simplex SMT solver*
+  - 🐍 [**`chatInterface.py`**](./src/chatInterface.py) — *Interactive 3-field chat & CLI frontend*
+- 📄 [**`RULES.MD`**](./RULES.MD) — *Architectural, memory-efficiency & clean code rules*
+- 📄 [**`README.MD`**](./README.MD) — *Documentation*
 
 ### ASCII Tree View
 
@@ -302,17 +264,10 @@ Shiva/ (branch: Yukti)
 │   ├── Component Diagram.png         # Tiered module breakdown
 │   ├── Flow diagram.png              # Execution & decision flow
 │   └── Sequence Diagram.png          # Chronological component interactions
-├── src/                              # Implementation source code
-│   ├── ParsingAndRegex/              # Tier 1: Perception Engine
-│   │   ├── model.py                  # spaCy pipeline loader & model config
-│   │   ├── TextStream.py             # 3-field YuktiInputDTO & stream normalizer
-│   │   └── TextProcess.py            # Dependency clause parser, regex & JSON exporter
-│   ├── TranslationEngine/            # Tier 2: Translation / Intermediary Engine
-│   │   └── TextToMathBridge.py       # Dynamic symbol table & universal AST builder
-│   ├── LogicEngine/                  # Tier 3: Formal Reasoning Engine (NumPy-native)
-│   │   ├── DPL.py                    # Propositional CDCL / DPLL SAT solver
-│   │   ├── SMT.py                    # Simplex-based Linear Real Arithmetic (LRA) solver
-│   │   └── LogicEngine.py            # SMT coordinator & unsat-core audit trail mapper
-│   └── chatInterface.py              # 3-field interactive chat & CLI frontend
+├── src/                              # Consolidated implementation source code
+│   ├── textProcessor.py              # Perception Tier: Model, Pydantic DTOs & Recipe pipeline
+│   ├── logicEngine.py                # Formal Reasoning Tier: Pure NumPy SMT/SAT solver
+│   └── chatInterface.py              # Interactive 3-field chat & CLI frontend
+├── RULES.MD                          # Architectural & coding rules
 └── README.MD                         # Documentation
 ```
