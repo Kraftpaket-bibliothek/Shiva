@@ -78,3 +78,20 @@ This document records the foundational coding style, architectural philosophies,
 
 - **Continuous Rule Logging**: Whenever the user provides feedback, refactors an approach, or establishes new conventions, immediately update this document (`RULES.MD`) with detailed explanations.
 - **Prioritize Speed & Brevity**: Do not verify or write excessive boilerplate tests unless explicitly instructed. Keep solutions minimal, performant, and directly aligned with the architecture diagram.
+
+---
+
+## 8. Python Environment & Execution
+
+- **Strict Virtual Environment Usage**: Always execute Python commands, tests, and scripts using the local virtual environment (`.venv/bin/python3`, `.venv/bin/pip`). Never invoke system Python (`python3`) directly.
+
+---
+
+## 9. Architecture Code & Diagram Parity
+
+- **Text-First & Code-Driven Architecture**: The `Architecture/` directory maintains code and markdown files (`SystemOverview.md`, `ComponentDiagram.md`, `FlowDiagram.md`, `SequenceDiagram.md`, `README.MD`, and `architectureSync.py`). Static binary images (`.png`) are banned.
+- **Mandatory Architectural Synchronization**: Whenever the agent makes an architectural change to `src/` (adding/renaming/merging modules, modifying Pydantic DTO contracts, altering recipe pipeline steps, or refactoring solver engines), the agent MUST:
+  1. Update the diagram models in `Architecture/architectureSync.py`.
+  2. Execute `.venv/bin/python3 Architecture/architectureSync.py` to regenerate the separate `.MD` diagram files.
+  3. Ensure 1:1 node-to-entity parity between the codebase and all architecture diagrams before concluding the task.
+

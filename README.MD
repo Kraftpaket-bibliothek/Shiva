@@ -241,12 +241,14 @@ Adverse Action / Violation Audit Trail:
 
 ### Repository Layout
 
-- 📁 [**`Architecture/`**](./Architecture) — *Visual architecture diagrams & design specifications*
+- 📁 [**`Architecture/`**](./Architecture) — *Code-driven architecture specifications & diagrams*
   - 📄 [`Architecture.drawio`](./Architecture/Architecture.drawio) — Editable Draw.io system diagram
-  - 🖼️ [`Architecture.png`](./Architecture/Architecture.png) — End-to-end architecture overview
-  - 🖼️ [`Component Diagram.png`](./Architecture/Component%20Diagram.png) — Component relationship diagram
-  - 🖼️ [`Flow diagram.png`](./Architecture/Flow%20diagram.png) — Execution & data flow diagram
-  - 🖼️ [`Sequence Diagram.png`](./Architecture/Sequence%20Diagram.png) — Chronological component interactions
+  - 📋 [`SystemOverview.md`](./Architecture/SystemOverview.md) — High-level end-to-end processing & reasoning flow
+  - 🧩 [`ComponentDiagram.md`](./Architecture/ComponentDiagram.md) — Modular classes, DTOs & component boundaries
+  - 🔄 [`FlowDiagram.md`](./Architecture/FlowDiagram.md) — Execution step lifecycle from ingestion to SMT verdict
+  - ⏱️ [`SequenceDiagram.md`](./Architecture/SequenceDiagram.md) — Chronological runtime interactions between components
+  - 🐍 [`architectureSync.py`](./Architecture/architectureSync.py) — Architecture diagram generator & AST parity validator
+  - 📄 [`README.MD`](./Architecture/README.MD) — Architecture index & usage guide
 - 📁 [**`src/`**](./src) — *Consolidated implementation source code*
   - 🐍 [**`textProcessor.py`**](./src/textProcessor.py) — *Perception Tier: Model loading, Pydantic DTOs & Recipe pipeline*
   - 🐍 [**`logicEngine.py`**](./src/logicEngine.py) — *Formal Reasoning Tier: Pure NumPy CDCL SAT and Simplex SMT solver*
@@ -258,12 +260,14 @@ Adverse Action / Violation Audit Trail:
 
 ```text
 Shiva/ (branch: Yukti)
-├── Architecture/                     # Visual design specifications
+├── Architecture/                     # Architecture specifications & diagrams
 │   ├── Architecture.drawio           # Editable Draw.io source file
-│   ├── Architecture.png              # End-to-end architecture overview
-│   ├── Component Diagram.png         # Tiered module breakdown
-│   ├── Flow diagram.png              # Execution & decision flow
-│   └── Sequence Diagram.png          # Chronological component interactions
+│   ├── SystemOverview.md             # High-level end-to-end system flow
+│   ├── ComponentDiagram.md           # Modular classes, DTOs & boundaries
+│   ├── FlowDiagram.md                # Ingestion-to-SMT execution lifecycle
+│   ├── SequenceDiagram.md            # Chronological runtime interactions
+│   ├── architectureSync.py           # Architecture generator & parity sync
+│   └── README.MD                     # Architecture directory guide
 ├── src/                              # Consolidated implementation source code
 │   ├── textProcessor.py              # Perception Tier: Model, Pydantic DTOs & Recipe pipeline
 │   ├── logicEngine.py                # Formal Reasoning Tier: Pure NumPy SMT/SAT solver
