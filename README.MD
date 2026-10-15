@@ -242,7 +242,6 @@ Adverse Action / Violation Audit Trail:
 ### Repository Layout
 
 - 📁 [**`Architecture/`**](./Architecture) — *Code-driven architecture specifications & diagrams*
-  - 📄 [`Architecture.drawio`](./Architecture/Architecture.drawio) — Editable Draw.io system diagram
   - 📋 [`SystemOverview.md`](./Architecture/SystemOverview.md) — High-level end-to-end processing & reasoning flow
   - 🧩 [`ComponentDiagram.md`](./Architecture/ComponentDiagram.md) — Modular classes, DTOs & component boundaries
   - 🔄 [`FlowDiagram.md`](./Architecture/FlowDiagram.md) — Execution step lifecycle from ingestion to SMT verdict
@@ -261,7 +260,6 @@ Adverse Action / Violation Audit Trail:
 ```text
 Shiva/ (branch: Yukti)
 ├── Architecture/                     # Architecture specifications & diagrams
-│   ├── Architecture.drawio           # Editable Draw.io source file
 │   ├── SystemOverview.md             # High-level end-to-end system flow
 │   ├── ComponentDiagram.md           # Modular classes, DTOs & boundaries
 │   ├── FlowDiagram.md                # Ingestion-to-SMT execution lifecycle
