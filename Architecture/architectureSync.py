@@ -122,6 +122,33 @@ classDiagram
         +executePipeline(inputData) str
     }
 
+    class Equation {
+        +str symbol
+        +str operator
+        +Any value
+        +bool isFact
+        +str sourceId
+        +str rawText
+    }
+
+    class LogicNode {
+        +str nodeId
+        +str nodeType
+        +Equation equation
+        +List~LogicNode~ children
+        +Dict metadata
+    }
+
+    class AndOrGraph {
+        +LogicNode root
+        +Dict ruleNodes
+        +Dict factNodes
+        +List~Equation~ equations
+        +Set~str~ symbols
+        +collectLeaves() List~LogicNode~
+        +summarizeGraph() Dict
+    }
+
     class LogicEngine {
         +solvePolicy(jsonPayload) DecisionResult
         +extractUnsatCore(conflictClauses) List~str~
@@ -147,7 +174,10 @@ classDiagram
     DataInput --> TextProcess : Ingested By
     Model --> TextProcess : Injected Into
     TextProcess --> ParsedOutputDTO : Assembles
-    ParsedOutputDTO --> LogicEngine : Consumed By
+    ParsedOutputDTO --> AndOrGraph : Assembled By
+    AndOrGraph --> LogicNode : Composed Of
+    LogicNode --> Equation : Leaves
+    AndOrGraph --> LogicEngine : Solved By
     LogicEngine --> dpllEngine : SAT Solving
     LogicEngine --> smtEngine : Theory Checking
     chatInterface --> TextProcess : Submits Input
@@ -169,7 +199,8 @@ flowchart TD
     DepPrune --> DTOAssemble["assembleDto<br/>(Construct ParsedRuleDTO & ParsedFactDTO)"]
     DTOAssemble --> JSONExport["exportJson<br/>(Validate & Serialize via ParsedOutputDTO)"]
     
-    JSONExport --> SATInit["Initialize Boolean Abstraction & Tracking Literals"]
+    JSONExport --> AOG["assembleAndOrGraph<br/>(Convert Rules & Facts to Logic Equations & AND-OR Graph)"]
+    AOG --> SATInit["Initialize Boolean Abstraction & Tracking Literals"]
     SATInit --> CDCL["CDCL SAT Solver (dpllEngine)<br/>(Unit Propagation & Watched Literals)"]
     
     CDCL --> SATCheck{"Boolean SAT<br/>Consistent?"}

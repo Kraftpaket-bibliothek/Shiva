@@ -11,7 +11,8 @@ flowchart TD
     DepPrune --> DTOAssemble["assembleDto<br/>(Construct ParsedRuleDTO & ParsedFactDTO)"]
     DTOAssemble --> JSONExport["exportJson<br/>(Validate & Serialize via ParsedOutputDTO)"]
     
-    JSONExport --> SATInit["Initialize Boolean Abstraction & Tracking Literals"]
+    JSONExport --> AOG["assembleAndOrGraph<br/>(Convert Rules & Facts to Logic Equations & AND-OR Graph)"]
+    AOG --> SATInit["Initialize Boolean Abstraction & Tracking Literals"]
     SATInit --> CDCL["CDCL SAT Solver (dpllEngine)<br/>(Unit Propagation & Watched Literals)"]
     
     CDCL --> SATCheck{"Boolean SAT<br/>Consistent?"}

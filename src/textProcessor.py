@@ -202,8 +202,8 @@ def createJsonOutput(
 # ======================================================================
 
 BOOLEAN_MAP: Dict[str, bool] = {
-    "true": True, "yes": True, "1": True, "active": True,
-    "false": False, "no": False, "0": False, "inactive": False,
+    "true": True, "yes": True, "active": True,
+    "false": False, "no": False, "inactive": False,
 }
 
 OPERATOR_MAP: Dict[str, str] = {
@@ -218,7 +218,7 @@ OPERATOR_MAP: Dict[str, str] = {
 OPERATOR_REGEX: str = "|".join(re.escape(k) for k in sorted(OPERATOR_MAP.keys(), key=len, reverse=True))
 
 CLAUSE_PATTERN = re.compile(
-    rf"^(?P<subject>.*?)\s*(?P<op>{OPERATOR_REGEX})\s*(?P<val>\d+(?:\.\d+)?%?|\w+)?\s*$",
+    rf"^(?P<subject>.*?)\s*(?P<op>{OPERATOR_REGEX})\s*(?P<val>\d+(?:\.\d+)?%?|\w+)?[\s\.\?!]*$",
     re.IGNORECASE,
 )
 
