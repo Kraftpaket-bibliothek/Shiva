@@ -56,6 +56,7 @@ This document records the foundational coding style, architectural philosophies,
 - **Function Brevity**: Keep individual functions short (typically 4–8 lines). Every function must do exactly one thing.
 - **No Inner or Top Comments**: Avoid comments inside functions and avoid long paragraph/docstring commentary at the top of files. The code must be clean, declarative, and self-explanatory.
 - **Section Comment Ribbons**: Cleanly separate distinct functional layers and modules using standard comment ribbons (e.g., `# ======================================================================`) so readers can immediately understand boundaries.
+- **Dual Comment Banners for Phase Transitions**: Use two long comment banners back-to-back (`# ======================================================================` x 2) to cleanly demarcate transitions between major phase components (e.g., between Phase 1 and Phase 2). Use single banners for sub-sections within a phase.
 - **Top-to-Bottom Readability**: Arrange files in chronological, logical order so reading top-to-bottom explains the entire execution lifecycle.
 
 ---

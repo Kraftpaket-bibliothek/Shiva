@@ -80,26 +80,56 @@ classDiagram
         +summarizeGraph() Dict
     }
 
+    class CnfFormula {
+        +List~List~int~~ clauses
+        +int numVariables
+        +List~int~ trackingLiterals
+        +LiteralMapping mapping
+        +summarize() Dict
+    }
+
+    class LiteralMapping {
+        +Dict literalToEquation
+        +Dict equationToLiteral
+        +Dict ruleToTrackingLiteral
+        +Dict trackingLiteralToRule
+    }
+
+    class BaseEngine {
+        +str engineName
+        +str status
+        +solve(payload) Any
+        +explainConflict() List
+        +resetEngine() None
+    }
+
+    class DpllEngine {
+        +solveSat(cnf, assumptions) Dict
+        +learnConflictClause(clause) None
+    }
+
+    class SmtEngine {
+        +solveTheory(activeEquations) Dict
+        +explainConflict() List
+    }
+
+    class AlgebraicEngine {
+        <<Future Extension>>
+        +solveAlgebraic(equations) Dict
+    }
+
     class LogicEngine {
-        +solvePolicy(jsonPayload) DecisionResult
-        +extractUnsatCore(conflictClauses) List~str~
-    }
-
-    class dpllEngine {
-        +solveSat(clauseMatrix) SatResult
-        +propagateUnits() None
-        +learnConflictClause() None
-    }
-
-    class smtEngine {
-        +checkTheory(assignments) TheoryResult
-        +pivotSimplexTableau() None
-        +generateExplanation() List~int~
+        +DpllEngine satSolver
+        +List~BaseEngine~ theorySolvers
+        +solvePolicy(payload) DecisionResult
+        +extractUnsatCore(conflicts, mapping) List~str~
     }
 
     class chatInterface {
-        +promptUserInputs() DataInput
-        +renderAuditReport(decision) None
+        +createFastApiApp() FastAPI
+        +adjudicatePayload(inputData) Dict
+        +openDefaultBrowser(host, port) None
+        +startWebServer(host, port) None
     }
 
     DataInput --> TextProcess : Ingested By
@@ -108,9 +138,13 @@ classDiagram
     ParsedOutputDTO --> AndOrGraph : Assembled By
     AndOrGraph --> LogicNode : Composed Of
     LogicNode --> Equation : Leaves
-    AndOrGraph --> LogicEngine : Solved By
-    LogicEngine --> dpllEngine : SAT Solving
-    LogicEngine --> smtEngine : Theory Checking
+    AndOrGraph --> CnfFormula : Compiled Via Tseitin
+    CnfFormula --> LiteralMapping : Indexed In
+    BaseEngine <|-- DpllEngine : Extends
+    BaseEngine <|-- SmtEngine : Extends
+    BaseEngine <|-- AlgebraicEngine : Extends
+    LogicEngine *-- DpllEngine : Wraps
+    LogicEngine *-- SmtEngine : Wraps Theory
     chatInterface --> TextProcess : Submits Input
     chatInterface <-- LogicEngine : Displays Result
 ```

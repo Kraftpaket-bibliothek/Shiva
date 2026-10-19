@@ -156,12 +156,12 @@ Built with Python and pure NumPy without external C++ or third-party logic depen
 - **`smtEngine`**: Implements a tableau-based 2-phase Simplex algorithm using NumPy matrix pivots to solve systems of linear inequalities (Theory $\mathcal{T}$-Solver).
 - **`LogicEngine`**: Top-level SMT facade that coordinates SAT solving with Theory lemmas, asserts tracking literals for every rule, and maps UNSAT cores directly back into human-readable rule violations.
 
-#### Interactive Interface ([`src/chatInterface.py`](./src/chatInterface.py))
-- Interactive 3-field UI/CLI frontend prompting users for **1. Multiple Rules**, **2. Case Facts**, and **3. Target**, passing them to `TextProcess` and rendering the resulting audit report.
+#### Interactive Web Interface ([`src/chatInterface.py`](./src/chatInterface.py))
+- Sleek FastAPI web dashboard styled with Open Sans. Prompts users for **1. Multiple Rules**, **2. Case Facts**, and **3. Target**, and automatically launches in the default browser on startup to render certified mathematical audit reports.
 
 ### Installation & Environment Setup
 
-Yukti requires only Python 3.10+, NumPy, and spaCy.
+Yukti requires Python 3.10+, NumPy, spaCy, Pydantic, and FastAPI:
 
 ```bash
 # Clone the repository and switch to the Yukti branch
@@ -170,11 +170,11 @@ cd Shiva
 git checkout Yukti
 
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install the minimal dependencies
-pip install numpy spacy
+pip install numpy spacy pydantic fastapi uvicorn
 
 # Download the English pipeline (default: en_core_web_lg, configurable in .config)
 python -m spacy download en_core_web_lg
