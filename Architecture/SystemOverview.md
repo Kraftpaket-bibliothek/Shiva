@@ -29,9 +29,15 @@ graph TD
     end
 
     subgraph ReasoningTier["4. Formal Reasoning Engine (src/logicEngine.py)"]
+        Parser["PayloadParser<br/>(Concrete Ingestion Parser)"]
+        GB["GraphBuilder<br/>(AST Grounding & Equation Nodes)"]
+        Compiler["CnfCompilerInterface<br/>(TseitinCnfCompiler Implementation)"]
         Logic["LogicEngine SMT Coordinator"]
-        DPLL["dpllEngine<br/>(NumPy Boolean CDCL SAT)"]
-        SMT["smtEngine<br/>(NumPy 2-Phase Simplex LRA)"]
+        DPLL["DpllEngine<br/>(NumPy Boolean CDCL SAT)"]
+        SMT["SmtEngine<br/>(NumPy 2-Phase Simplex LRA)"]
+        Parser --> GB
+        GB --> Compiler
+        Compiler --> Logic
         Logic --> DPLL
         Logic --> SMT
     end
@@ -42,6 +48,6 @@ graph TD
 
     Input --> Harness
     Recipe --> DTO
-    DTO --> Logic
+    DTO --> Parser
     Logic --> Decision
 ```

@@ -11,13 +11,15 @@ flowchart TD
     DepPrune --> DTOAssemble["assembleDto<br/>(Construct ParsedRuleDTO & ParsedFactDTO)"]
     DTOAssemble --> JSONExport["exportJson<br/>(Validate & Serialize via ParsedOutputDTO)"]
     
-    JSONExport --> AOG["assembleAndOrGraph<br/>(Convert Rules & Facts to Logic Equations & AND-OR Graph)"]
-    AOG --> SATInit["Initialize Boolean Abstraction & Tracking Literals"]
-    SATInit --> CDCL["CDCL SAT Solver (dpllEngine)<br/>(Unit Propagation & Watched Literals)"]
+    JSONExport --> PP["PayloadParser<br/>(Validate & Hydrate ParsedOutputDTO)"]
+    PP --> GB["GraphBuilder<br/>(Ground Equations & Assemble AndOrGraph)"]
+    GB --> Tseitin["TseitinCnfCompiler<br/>(Encode AST & Populate PropositionalAbstractionTable)"]
+    
+    Tseitin --> CDCL["DpllEngine (CDCL SAT)<br/>(2WL Propagation, VSIDS, 1UIP Conflict Analysis)"]
     
     CDCL --> SATCheck{"Boolean SAT<br/>Consistent?"}
     SATCheck -- No --> SATUnsat["Extract Propositional UNSAT Core"]
-    SATCheck -- Yes --> Simplex["Simplex LRA Solver (smtEngine)<br/>(Tableau Matrix Pivots & Bounds Check)"]
+    SATCheck -- Yes --> Simplex["SmtEngine (Simplex LRA)<br/>(Tableau Matrix Pivots & Bounds Check)"]
     
     Simplex --> TheoryCheck{"Linear Real<br/>Feasible?"}
     TheoryCheck -- No --> LearnConflict["Learn Theory Lemma Clause<br/>& Backjump"]

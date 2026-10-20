@@ -269,11 +269,9 @@ def pruneDependencies(docOrSpan: Union[Doc, Span]) -> List[Token]:
 
 
 def extractSubject(doc: Doc) -> str:
-    chunks = list(doc.noun_chunks)
-    candidate = chunks[0].text if chunks else " ".join(
-        t.text for t in pruneDependencies(doc) if t.dep_ in ("nsubj", "nsubjpass", "compound", "amod", "attr")
-    )
-    return formatSymbol(candidate or doc.text)
+    tokens = pruneDependencies(doc)
+    candidate = " ".join(t.text for t in tokens) if tokens else doc.text
+    return formatSymbol(candidate)
 
 
 def parseClause(clauseText: str, nlp: Language) -> Tuple[str, str, Union[float, int, str, bool]]:

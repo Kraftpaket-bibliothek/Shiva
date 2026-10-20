@@ -48,9 +48,15 @@ graph TD
     end
 
     subgraph ReasoningTier["4. Formal Reasoning Engine (src/logicEngine.py)"]
+        Parser["PayloadParser<br/>(Concrete Ingestion Parser)"]
+        GB["GraphBuilder<br/>(AST Grounding & Equation Nodes)"]
+        Compiler["CnfCompilerInterface<br/>(TseitinCnfCompiler Implementation)"]
         Logic["LogicEngine SMT Coordinator"]
-        DPLL["dpllEngine<br/>(NumPy Boolean CDCL SAT)"]
-        SMT["smtEngine<br/>(NumPy 2-Phase Simplex LRA)"]
+        DPLL["DpllEngine<br/>(NumPy Boolean CDCL SAT)"]
+        SMT["SmtEngine<br/>(NumPy 2-Phase Simplex LRA)"]
+        Parser --> GB
+        GB --> Compiler
+        Compiler --> Logic
         Logic --> DPLL
         Logic --> SMT
     end
@@ -61,7 +67,7 @@ graph TD
 
     Input --> Harness
     Recipe --> DTO
-    DTO --> Logic
+    DTO --> Parser
     Logic --> Decision
 ```
 """
@@ -94,22 +100,27 @@ classDiagram
 
     class ParsedRuleDTO {
         +str ruleId
-        +str originalText
-        +str antecedent
-        +str consequent
-        +List~str~ extractedVariables
+        +str symbol
+        +str operator
+        +Any threshold
+        +str conditionSymbol
+        +str conditionOperator
+        +Any conditionValue
+        +str rawText
     }
 
     class ParsedFactDTO {
+        +str factId
         +str symbol
-        +str operator
         +Any value
+        +str rawText
     }
 
     class ParsedOutputDTO {
         +List~ParsedRuleDTO~ rules
         +List~ParsedFactDTO~ facts
-        +List~str~ requiredOutcome
+        +str requiredOutcome
+        +str parsingStatus
         +toJson() str
     }
 
@@ -120,6 +131,10 @@ classDiagram
         +clearSteps() None
         +listSteps() List~str~
         +executePipeline(inputData) str
+    }
+
+    class PayloadParser {
+        +parsePayload(payload) ParsedOutputDTO
     }
 
     class Equation {
@@ -133,7 +148,7 @@ classDiagram
 
     class LogicNode {
         +str nodeId
-        +str nodeType
+        +NodeType nodeType
         +Equation equation
         +List~LogicNode~ children
         +Dict metadata
@@ -145,53 +160,108 @@ classDiagram
         +Dict factNodes
         +List~Equation~ equations
         +Set~str~ symbols
-        +collectLeaves() List~LogicNode~
-        +summarizeGraph() Dict
-    }
-
-    class CnfFormula {
-        +List~List~int~~ clauses
-        +int numVariables
-        +List~int~ trackingLiterals
-        +LiteralMapping mapping
         +summarize() Dict
     }
 
-    class LiteralMapping {
+    class GraphBuilder {
+        +buildGraph(dto) AndOrGraph
+        -_createEquationNode(equation, nodeId) LogicNode
+        -_convertFact(factDto) Equation
+        -_buildConsequent(ruleDto) Equation
+        -_buildAntecedent(ruleDto) Equation
+        -_buildRuleBranch(ruleDto) LogicNode
+        -_buildFactBranch(factDto) LogicNode
+    }
+
+    class PropositionalAbstractionTable {
         +Dict literalToEquation
         +Dict equationToLiteral
         +Dict ruleToTrackingLiteral
         +Dict trackingLiteralToRule
     }
 
+    class CnfFormula {
+        +List~List~int~~ clauses
+        +int numVariables
+        +int numClauses
+        +List~int~ trackingLiterals
+        +PropositionalAbstractionTable abstractionTable
+        +summarize() Dict
+    }
+
+    class CnfCompilerInterface {
+        <<interface>>
+        +compileToCnf(graph) CnfFormula*
+    }
+
+    class TseitinCnfCompiler {
+        +compileToCnf(graph) CnfFormula
+        -_buildEquationKey(eq) str
+        -_allocateEquationLiteral(table, eq, counter) int
+        -_allocateTrackingLiteral(table, ruleId, counter) int
+        -_encodeAndClauses(parentVar, childVars) List
+        -_encodeOrClauses(parentVar, childVars) List
+        -_encodeNotClauses(parentVar, childVar) List
+        -_dispatchTseitinEncoding(nodeType, parentVar, childVars) List
+        -_tseitinTraverse(node, table, clauses, counter) int
+    }
+
+    class EngineStatus {
+        <<enumeration>>
+        INITIALIZED
+        SATISFIABLE
+        UNSATISFIABLE
+        FEASIBLE
+        INFEASIBLE
+        ACCEPTED
+        REJECTED
+        UNKNOWN
+    }
+
     class BaseEngine {
         +str engineName
-        +str status
+        +EngineStatus status
         +solve(payload) Any
         +explainConflict() List
-        +resetEngine() None
     }
 
     class DpllEngine {
+        +List learnedClauses
         +solveSat(cnf, assumptions) Dict
-        +learnConflictClause(clause) None
+        +solve(payload) Any
+        -_initWatchedLiterals(clauses, numVars) Dict
+        -_assignLiteral(lit, level, antecedent, assignments, trailLevels, antecedents, trail) None
+        -_isLiteralSatisfied(lit, assignments) bool
+        -_isLiteralFalsified(lit, assignments) bool
+        -_findAlternativeWatch(clause, falsifiedLit, otherWatch, assignments) int
+        -_propagateTwoWatchedLiterals(falsifiedLit, clauses, assignments, watches, trailLevels, antecedents, trail, currentLevel) int
+        -_analyzeConflict1UIP(conflictIdx, clauses, trail, trailLevels, antecedents, currentLevel) Tuple
+        -_backjumpToLevel(targetLevel, trail, assignments, trailLevels, antecedents) None
+        -_pickBranchingLiteral(assignments, activityScores) int
     }
 
     class SmtEngine {
+        +List conflictLemmas
         +solveTheory(activeEquations) Dict
+        +solve(payload) Any
         +explainConflict() List
-    }
-
-    class AlgebraicEngine {
-        <<Future Extension>>
-        +solveAlgebraic(equations) Dict
+        -_buildSymbolIndex(equations) Dict
+        -_assignEquationBounds(operator, val, rowIdx, lowerBounds, upperBounds) None
+        -_buildSimplexTableau(equations, symbolMap) Tuple
+        -_findViolatedBasicRow(values, lowerBounds, upperBounds) int
+        -_findEligiblePivotCol(rowIdx, tableau, values, lowerBounds, upperBounds, colFrozen) int
+        -_pivotSimplexTableau(tableau, values, rowIdx, colIdx) None
     }
 
     class LogicEngine {
         +DpllEngine satSolver
         +List~BaseEngine~ theorySolvers
+        +CnfCompilerInterface cnfCompiler
+        +PayloadParser payloadParser
+        +GraphBuilder graphBuilder
         +solvePolicy(payload) DecisionResult
-        +extractUnsatCore(conflicts, mapping) List~str~
+        -_resolveGraph(payload) AndOrGraph
+        -_extractActiveEquations(cnf, satResult, graph) List
     }
 
     class chatInterface {
@@ -204,16 +274,22 @@ classDiagram
     DataInput --> TextProcess : Ingested By
     Model --> TextProcess : Injected Into
     TextProcess --> ParsedOutputDTO : Assembles
-    ParsedOutputDTO --> AndOrGraph : Assembled By
+    ParsedOutputDTO --> PayloadParser : Ingested By
+    PayloadParser --> GraphBuilder : Ingested By
+    GraphBuilder --> AndOrGraph : Constructs
     AndOrGraph --> LogicNode : Composed Of
     LogicNode --> Equation : Leaves
-    AndOrGraph --> CnfFormula : Compiled Via Tseitin
-    CnfFormula --> LiteralMapping : Indexed In
+    CnfCompilerInterface <|.. TseitinCnfCompiler : Implements
+    GraphBuilder --> CnfCompilerInterface : Transformed By
+    CnfCompilerInterface --> CnfFormula : Generates
+    CnfFormula --> PropositionalAbstractionTable : Registers In
     BaseEngine <|-- DpllEngine : Extends
     BaseEngine <|-- SmtEngine : Extends
-    BaseEngine <|-- AlgebraicEngine : Extends
-    LogicEngine *-- DpllEngine : Wraps
-    LogicEngine *-- SmtEngine : Wraps Theory
+    LogicEngine *-- DpllEngine : Coordinates SAT
+    LogicEngine *-- SmtEngine : Coordinates SMT
+    LogicEngine *-- CnfCompilerInterface : Uses
+    LogicEngine *-- PayloadParser : Uses
+    LogicEngine *-- GraphBuilder : Uses
     chatInterface --> TextProcess : Submits Input
     chatInterface <-- LogicEngine : Displays Result
 ```
@@ -233,13 +309,15 @@ flowchart TD
     DepPrune --> DTOAssemble["assembleDto<br/>(Construct ParsedRuleDTO & ParsedFactDTO)"]
     DTOAssemble --> JSONExport["exportJson<br/>(Validate & Serialize via ParsedOutputDTO)"]
     
-    JSONExport --> AOG["assembleAndOrGraph<br/>(Convert Rules & Facts to Logic Equations & AND-OR Graph)"]
-    AOG --> SATInit["Initialize Boolean Abstraction & Tracking Literals"]
-    SATInit --> CDCL["CDCL SAT Solver (dpllEngine)<br/>(Unit Propagation & Watched Literals)"]
+    JSONExport --> PP["PayloadParser<br/>(Validate & Hydrate ParsedOutputDTO)"]
+    PP --> GB["GraphBuilder<br/>(Ground Equations & Assemble AndOrGraph)"]
+    GB --> Tseitin["TseitinCnfCompiler<br/>(Encode AST & Populate PropositionalAbstractionTable)"]
+    
+    Tseitin --> CDCL["DpllEngine (CDCL SAT)<br/>(2WL Propagation, VSIDS, 1UIP Conflict Analysis)"]
     
     CDCL --> SATCheck{"Boolean SAT<br/>Consistent?"}
     SATCheck -- No --> SATUnsat["Extract Propositional UNSAT Core"]
-    SATCheck -- Yes --> Simplex["Simplex LRA Solver (smtEngine)<br/>(Tableau Matrix Pivots & Bounds Check)"]
+    SATCheck -- Yes --> Simplex["SmtEngine (Simplex LRA)<br/>(Tableau Matrix Pivots & Bounds Check)"]
     
     Simplex --> TheoryCheck{"Linear Real<br/>Feasible?"}
     TheoryCheck -- No --> LearnConflict["Learn Theory Lemma Clause<br/>& Backjump"]
@@ -265,8 +343,10 @@ sequenceDiagram
     participant TP as textProcessor (TextProcess)
     participant DTO as ParsedOutputDTO
     participant LE as logicEngine (LogicEngine)
-    participant DPLL as dpllEngine (CDCL SAT)
-    participant SMT as smtEngine (Simplex LRA)
+    participant GB as GraphBuilder
+    participant TC as TseitinCnfCompiler
+    participant DPLL as DpllEngine (CDCL SAT)
+    participant SMT as SmtEngine (Simplex LRA)
 
     User->>UI: Submit Rules, Facts, and Required Outcome
     UI->>TP: executePipeline(DataInput)
@@ -282,12 +362,22 @@ sequenceDiagram
 
     UI->>LE: solvePolicy(jsonPayload)
     activate LE
-    LE->>DPLL: solveSat(booleanClauses)
+    LE->>GB: buildGraph(parsedDto)
+    activate GB
+    GB-->>LE: AndOrGraph
+    deactivate GB
+
+    LE->>TC: compileToCnf(graph)
+    activate TC
+    TC-->>LE: CnfFormula (with PropositionalAbstractionTable)
+    deactivate TC
+
+    LE->>DPLL: solveSat(cnf, assumptions)
     activate DPLL
     DPLL-->>LE: Propositional Assignment Model
     deactivate DPLL
 
-    LE->>SMT: checkTheory(linearInequalities)
+    LE->>SMT: solveTheory(activeEquations)
     activate SMT
     SMT-->>LE: Feasible / Infeasible (Theory Conflict Lemma)
     deactivate SMT
@@ -297,8 +387,8 @@ sequenceDiagram
         DPLL-->>LE: Updated Assignment or Propositional UNSAT
     end
 
-    LE->>LE: extractUnsatCore(conflicts)
-    LE-->>UI: Return DecisionResult (Status, Audit Trail)
+    LE->>LE: Formulate DecisionResult (Status, UNSAT Core)
+    LE-->>UI: Return DecisionResult
     deactivate LE
 
     UI-->>User: Display Formatted Verdict & Adverse Action Report

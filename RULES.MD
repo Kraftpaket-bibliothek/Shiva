@@ -7,7 +7,8 @@ This document records the foundational coding style, architectural philosophies,
 ## 1. Method & Function Naming Rules
 
 - **Active Verb Requirement**: Every method and function name must be an active verb (or verb phrase) that states exactly what the function accomplishes (e.g., `readConfig`, `downloadModel`, `loadModel`, `pruneDependencies`, `warmup`).
-- **No Underscores (camelCase)**: Method and function names must **never** contain underscores. Use strict camelCase (e.g., `readConfig`, not `read_config` or `_read_config`).
+- **No Underscores in Public Methods (camelCase)**: Public method and function names must **never** contain underscores. Use strict camelCase (e.g., `readConfig`, `buildGraph`, `solveSat`).
+- **Internal / Private Methods (`_<internalMethod>`)**: Internal helper methods encapsulated within classes must be strictly prefixed with a single leading underscore followed by camelCase (e.g., `_assignLiteral`, `_pivotSimplexTableau`, `_buildSimplexTableau`, `_convertFact`, `_tseitinTraverse`).
 - **No Vague or Generic Verbs**: Avoid ambiguous names like `process`, `handle`, `run`, or `manage`. Prefer precise actions like `parseAndSegment`, `buildIr`, `solvePolicy`.
 
 ---
@@ -18,9 +19,11 @@ This document records the foundational coding style, architectural philosophies,
   - `Model` (the model instantiator within `textProcessor.py`)
   - `TextProcess` (the pipeline harness within `textProcessor.py`)
   - `DataInput`, `ParsedRuleDTO`, `ParsedFactDTO`, `ParsedOutputDTO` (Pydantic DTOs within `textProcessor.py`)
-  - `LogicEngine`, `DPL`, `SMT` (the formal reasoning solvers)
+  - `PayloadParser`, `GraphBuilder`, `PropositionalAbstractionTable`, `CnfFormula` (Ingestion & AST models in `logicEngine.py`)
+  - `CnfCompilerInterface`, `TseitinCnfCompiler` (Boolean abstraction compilers in `logicEngine.py`)
+  - `BaseEngine`, `DpllEngine`, `SmtEngine`, `LogicEngine` (the formal reasoning solvers in `logicEngine.py`)
   - `chatInterface` (the interactive CLI/frontend)
-- **Eliminate Wrapper / Fluff Classes**: Avoid creating redundant classes or manager wrappers (e.g., never create `SpacyModelManager`, `ConfigManager`, or `YuktiModelConfig` dataclasses when a plain function or dictionary suffices).
+- **Eliminate Wrapper / Fluff Classes and Methods**: Avoid creating redundant classes or manager wrappers (e.g., never create `SpacyModelManager`, `ConfigManager`, or `EquationFactory` when a cohesive builder or function suffices). Eliminate dead stateful reset methods like `resetEngine()` on stateless solvers.
 - **Consolidated Perception Module (`textProcessor.py`)**: Tier 1 Perception encapsulates `Model`, Pydantic DTOs, and `TextProcess` inside a single unified `textProcessor.py` file, cleanly partitioned by section comment ribbons.
 - **Match Architecture Diagram Nodes**: Every class and file must have a 1:1 direct correspondence with an entity in the architecture diagram.
 - **Single Exposed Entry Point Pattern**: Classes that manage complex multi-step lifecycles (like `Model`) must encapsulate their individual operations (`_loadModel`, `_warmup`, `_pruneDependencies`) as **internal methods**. The class must expose **exactly one public coordinator method** (e.g., `loadModelToMemory`) that orchestrates all internal steps and returns the ready-to-use artifact. The module should only export this single entry point.
