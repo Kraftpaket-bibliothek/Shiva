@@ -13,7 +13,7 @@
 ---
 
 Yukti is a lightweight, domain-agnostic, zero-hallucination neuro-symbolic decision engine designed for high-stakes decision adjudication across finance, aerospace, autonomous robotics, healthcare, and regulatory compliance. By replacing non-deterministic generative models with a structured **3-field input contract** (`Rules`, `Facts`, `Target`), a **spaCy + Regex** semantic extractor, and a custom **NumPy-native $\text{DPLL}(\mathcal{T})$ SMT solver**, Yukti converts natural language policies into provable, mathematically verifiable decisions.
-
+To note, this is a proof of concept. The real core engine would be developed in a seperate repo.
 ---
 
 ## 1. For Business Leaders & Risk Executives
